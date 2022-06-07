@@ -3,7 +3,8 @@ from ..builder import CLASSIFIERS, build_backbone, build_head, build_neck
 from ..heads import MultiLabelClsHead
 from ..utils.augment import Augments
 from .base import BaseClassifier
-
+from torchvision.transforms import Normalize
+from torch.nn import Identity
 
 @CLASSIFIERS.register_module()
 class ImageClassifier(BaseClassifier):
@@ -14,8 +15,14 @@ class ImageClassifier(BaseClassifier):
                  head=None,
                  pretrained=None,
                  train_cfg=None,
-                 init_cfg=None):
+                 init_cfg=None,
+                 input_norm_cfg=None):
         super(ImageClassifier, self).__init__(init_cfg)
+
+        if input_norm_cfg is not None:
+            self.norm_op = Normalize(input_norm_cfg['mean'],input_norm_cfg['std'], inplace=True)
+        else:
+            self.norm_op = Identity()
 
         if pretrained is not None:
             self.init_cfg = dict(type='Pretrained', checkpoint=pretrained)
@@ -101,7 +108,10 @@ class ImageClassifier(BaseClassifier):
             (f'Invalid output stage "{stage}", please choose from "backbone", '
              '"neck" and "pre_logits"')
 
-        x = self.backbone(img)
+        
+        x = self.norm_op(img)
+
+        x = self.backbone(x)
 
         if stage == 'backbone':
             return x
