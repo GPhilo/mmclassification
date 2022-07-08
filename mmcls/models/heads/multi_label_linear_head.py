@@ -4,6 +4,7 @@ import torch.nn as nn
 
 from ..builder import HEADS
 from .multi_label_head import MultiLabelClsHead
+from ..losses.utils import convert_to_one_hot
 
 
 @HEADS.register_module()
@@ -48,6 +49,8 @@ class MultiLabelLinearClsHead(MultiLabelClsHead):
         x = self.pre_logits(x)
         gt_label = gt_label.type_as(x)
         cls_score = self.fc(x)
+        if gt_label.dim() == 1 or (gt_label.dim() == 2 and gt_label.shape[1] == 1):
+            gt_label = convert_to_one_hot(gt_label.view(-1, 1), cls_score.shape[-1])
         losses = self.loss(cls_score, gt_label, **kwargs)
         return losses
 
@@ -75,7 +78,7 @@ class MultiLabelLinearClsHead(MultiLabelClsHead):
         cls_score = self.fc(x)
 
         if sigmoid:
-            pred = torch.sigmoid(cls_score) if cls_score is not None else None
+            pred = torch.sigmoid(cls_score.float()) if cls_score is not None else None
         else:
             pred = cls_score
 
