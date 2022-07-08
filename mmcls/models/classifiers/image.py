@@ -3,8 +3,10 @@ from ..builder import CLASSIFIERS, build_backbone, build_head, build_neck
 from ..heads import MultiLabelClsHead
 from ..utils.augment import Augments
 from .base import BaseClassifier
+from mmcls.utils import get_root_logger
 from torchvision.transforms import Normalize
 from torch.nn import Identity
+from torch.onnx import is_in_onnx_export
 
 @CLASSIFIERS.register_module()
 class ImageClassifier(BaseClassifier):
@@ -21,8 +23,10 @@ class ImageClassifier(BaseClassifier):
 
         if input_norm_cfg is not None:
             self.norm_op = Normalize(input_norm_cfg['mean'],input_norm_cfg['std'], inplace=True)
+            self.has_norm_defined = True
         else:
             self.norm_op = Identity()
+            self.has_norm_defined = False
 
         if pretrained is not None:
             self.init_cfg = dict(type='Pretrained', checkpoint=pretrained)
@@ -152,6 +156,9 @@ class ImageClassifier(BaseClassifier):
 
     def simple_test(self, img, img_metas=None, **kwargs):
         """Test without augmentation."""
+        if is_in_onnx_export() and not self.has_norm_defined:
+            get_root_logger().warning("\n\nATTENTION: The model is being exported to ONNX, but no normalization has been specified in the model configuratoin.\nDid you forget to update the model configuration for inference?\n")
+
         x = self.extract_feat(img)
 
         if isinstance(self.head, MultiLabelClsHead):
