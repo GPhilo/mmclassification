@@ -50,7 +50,10 @@ class MultiLabelLinearClsHead(MultiLabelClsHead):
         gt_label = gt_label.type_as(x)
         cls_score = self.fc(x)
         if gt_label.dim() == 1 or (gt_label.dim() == 2 and gt_label.shape[1] == 1):
-            gt_label = convert_to_one_hot(gt_label.view(-1, 1), cls_score.shape[-1])
+            onehot_label = torch.zeros([gt_label.shape[0], cls_score.shape[-1]], dtype=torch.int64, device=gt_label.device)
+            positives = gt_label >= 0
+            onehot_label[positives] = convert_to_one_hot(gt_label[positives].view(-1, 1), cls_score.shape[-1])
+            gt_label = onehot_label
         losses = self.loss(cls_score, gt_label, **kwargs)
         return losses
 
